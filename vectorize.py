@@ -1,4 +1,4 @@
-"""Vector store builder + retriever factory for FinanceBench/FinDER/DocFinQA/FinQA."""
+"""Vector store builder + retriever factory for FinanceBench/FinQA/FinDoc-RAG."""
 import argparse
 import os
 import pathlib
@@ -25,8 +25,6 @@ assert os.getenv("OPENAI_API_KEY"), "API key not loaded!"
 ROOT = pathlib.Path(r"C:\Users\cypri\Desktop\Master Thesis")
 DEFAULT_DATA_DIRS = {
     "financebench": ROOT / "data" / "FinanceBench",
-    "finder": ROOT / "data" / "Finder",
-    "docfinqa": ROOT / "data" / "DocFinQa",
     "finqa": ROOT / "data" / "FinQa",
     "findoc": ROOT / "data" / "FinDoc",
 }
@@ -38,8 +36,6 @@ FINDOC_REF.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_REF_DIRS = {
     "financebench": FINANCEBENCH_REF,
-    #"finder": pathlib.Path("C:\Users\cypri\Desktop\Master Thesis\references\Finder"),
-    "docfinqa": None,
     "finqa": None,
     "findoc": FINDOC_REF,
 }
@@ -99,12 +95,12 @@ def _sanitize_doc_name(name: str) -> str:
     return str(name).replace(os.sep, "_")
 
 
-def _docfinqa_contexts() -> Dict[str, str]:
+def _finqa_contexts() -> Dict[str, str]:
     global _DOC_CONTEXTS
     if _DOC_CONTEXTS is None:
         df = pd.read_parquet(_CONFIG["dataset_path"])
         if "context_text" not in df.columns:
-            raise ValueError("Dataset must contain a context_text column for task=docfinqa/finqa")
+            raise ValueError("Dataset must contain a context_text column for task=finqa")
         _DOC_CONTEXTS = dict(zip(df["doc_name"].astype(str), df["context_text"].astype(str)))
     return _DOC_CONTEXTS
 
@@ -135,8 +131,8 @@ def _load_pdf_pages(doc_name: str):
 
 
 def get_pdf_text(doc_name: str):
-    if _CONFIG["task"] in ("docfinqa", "finqa"):
-        ctx = _docfinqa_contexts().get(str(doc_name))
+    if _CONFIG["task"] == "finqa":
+        ctx = _finqa_contexts().get(str(doc_name))
         if ctx is None:
             raise KeyError(f"No context stored for doc_name={doc_name}")
         return [Document(page_content=ctx, metadata={"doc_name": doc_name})]
@@ -160,8 +156,8 @@ def build_vectorstore_retriever(doc_name, embeddings=EMBEDDINGS):
 
 
 def parse_args():
-    p = argparse.ArgumentParser("Build vectorstores for FinanceBench/FinDER/DocFinQA/FinQA")
-    p.add_argument("--task", choices=("financebench", "finder", "docfinqa", "finqa", "findoc"), default="financebench")
+    p = argparse.ArgumentParser("Build vectorstores for FinanceBench/FinQA/FinDoc-RAG")
+    p.add_argument("--task", choices=("financebench", "finqa", "findoc"), default="financebench")
     p.add_argument("--data_dir", required=False, help="Folder containing dataset_prepared.parquet")
     p.add_argument("--ref_dir", required=False, help="Folder with PDF references (if applicable)")
     p.add_argument("--vs_dir", required=False, help="Folder to store vectorstores")

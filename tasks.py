@@ -133,17 +133,6 @@ class FinanceBenchTask(DataProcessor):
         return self.run_evaluate(predictor, prompt, examples, n)
 
 
-class FinderTask(FinanceBenchTask):
-    SPLIT_FILE = "finder_split.json"
-
-
-class DocFinQATask(FinanceBenchTask):
-    SPLIT_FILE = "docfinqa_split.json"
-    SPLIT_COLUMN = "split"
-    TRAIN_SPLITS = ("train",)
-    TEST_SPLITS = ("test",)
-
-
 class FinQATask(FinanceBenchTask):
     SPLIT_FILE = "finqa_split.json"
 
@@ -157,8 +146,6 @@ def get_task(task_name: str, data_root: str, **kw) -> FinanceBenchTask:
     name = task_name.lower()
     mapping = {
         "financebench": FinanceBenchTask,
-        "finder": FinderTask,
-        "docfinqa": DocFinQATask,
         "finqa": FinQATask,
         "findoc": FindocTask,
     }

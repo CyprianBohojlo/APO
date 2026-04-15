@@ -16,11 +16,11 @@ def parse_args():
     p.add_argument("--prompts", required=True,
                    help="Comma-separated list of seed prompt files")
     p.add_argument("--out", default="run_log.txt")
-    p.add_argument("--task", choices=("financebench", "finder", "docfinqa", "finqa", "findoc"),
+    p.add_argument("--task", choices=("financebench", "finqa", "findoc"),
                    default="financebench",
                    help="Which dataset/task to use")
     p.add_argument("--ref_dir", default=None,
-                   help="Folder with PDF references (FinanceBench/FinDER/FinDoc). Optional for DocFinQA/FinQA.")
+                   help="Folder with PDF references (FinanceBench) or markdown (FinDoc-RAG). Optional for FinQA.")
     # optimiser hyper-params 
     p.add_argument("--rounds", type=int, default=6)
     p.add_argument("--beam_size", type=int, default=4)
