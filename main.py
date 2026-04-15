@@ -7,6 +7,7 @@ from tasks      import get_task
 from predictors import QA_Generator
 from scorers    import BEMScorer
 from evaluators import get_evaluator, PPOEvaluator, DPOEvaluator
+from paths      import ROOT
 
 
 def parse_args():
@@ -15,7 +16,7 @@ def parse_args():
                    help="Folder with dataset_prepared.parquet for the chosen task")
     p.add_argument("--prompts", required=True,
                    help="Comma-separated list of seed prompt files")
-    p.add_argument("--out", default="run_log.txt")
+    p.add_argument("--out", default=str(ROOT / "results" / "run_log.txt"))
     p.add_argument("--task", choices=("financebench", "finqa", "findoc"),
                    default="financebench",
                    help="Which dataset/task to use")
@@ -148,7 +149,8 @@ def main() -> None:
 
 
 
-    # prepare output file 
+    # prepare output file
+    pathlib.Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     if os.path.exists(args.out):
         os.remove(args.out)
     with open(args.out, "a") as f:

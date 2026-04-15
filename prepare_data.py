@@ -5,8 +5,7 @@ import pathlib
 
 import pandas as pd
 
-
-ROOT = pathlib.Path(r"C:\Users\cypri\Desktop\Master Thesis")
+from paths import ROOT
 DEFAULT_DATA_DIRS = {
     "financebench": ROOT / "data" / "FinanceBench",
     "finqa": ROOT / "data" / "FinQa",

@@ -22,25 +22,21 @@ assert os.getenv("OPENAI_API_KEY"), "API key not loaded!"
 
 
 # ---------------------------------------------------------------------
-ROOT = pathlib.Path(r"C:\Users\cypri\Desktop\Master Thesis")
+from paths import ROOT
 DEFAULT_DATA_DIRS = {
     "financebench": ROOT / "data" / "FinanceBench",
     "finqa": ROOT / "data" / "FinQa",
     "findoc": ROOT / "data" / "FinDoc",
 }
 FINANCEBENCH_REF = ROOT / "references" / "FinanceBenchPdfs"
-FINANCEBENCH_REF.mkdir(parents=True, exist_ok=True)
-
 FINDOC_REF = ROOT / "references" / "FinDoc"
-FINDOC_REF.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_REF_DIRS = {
     "financebench": FINANCEBENCH_REF,
     "finqa": None,
     "findoc": FINDOC_REF,
 }
-FINANCEBENCH_VS = ROOT / "vectorstores"/ "FinanceBench"
-FINANCEBENCH_VS.mkdir(parents=True, exist_ok=True)
+FINANCEBENCH_VS = ROOT / "vectorstores" / "FinanceBench"
 
 VS_CHUNK_SIZE = 1024
 VS_CHUNK_OVERLAP = 30
@@ -78,7 +74,12 @@ def configure(task: str = "financebench", data_dir: str | os.PathLike | None = N
     if ref_dir_path and "YOUR_PATH" not in str(ref_dir_path):
         ref_dir_path.mkdir(parents=True, exist_ok=True)
 
-    vs_root = pathlib.Path(vs_dir) if vs_dir else FINANCEBENCH_VS
+    task_vs_defaults = {
+        "financebench": FINANCEBENCH_VS,
+        "finqa": ROOT / "vectorstores" / "FinQa",
+        "findoc": ROOT / "vectorstores" / "FinDoc",
+    }
+    vs_root = pathlib.Path(vs_dir) if vs_dir else task_vs_defaults.get(task, FINANCEBENCH_VS)
     vs_root.mkdir(parents=True, exist_ok=True)
 
     _CONFIG = {

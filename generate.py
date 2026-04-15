@@ -38,10 +38,10 @@ from langchain.prompts import PromptTemplate
 # ----------------------------------------------------------------------
 # DEFAULT PATHS (overridable via CLI for outputs only; inputs kept for parity)
 # ----------------------------------------------------------------------
-ROOT      = pathlib.Path(r"C:\Users\cypri\Desktop\Master Thesis")
+from paths import ROOT
 DATASET   = ROOT / "data" / "dataset_prepared.parquet"
 VS_DIR    = ROOT / "vectorstores"
-RESULTS   = ROOT / "results"; RESULTS.mkdir(exist_ok=True)
+RESULTS   = ROOT / "results"; RESULTS.mkdir(parents=True, exist_ok=True)
 OUT_PATH  = RESULTS / "answers.jsonl"
 
 # Embeddings: match vectorization pipeline (e5-small-v2)
