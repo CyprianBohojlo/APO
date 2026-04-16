@@ -33,7 +33,7 @@ from langchain_openai.embeddings import OpenAIEmbeddings          # imported in 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_openai.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 # ----------------------------------------------------------------------
 # DEFAULT PATHS (overridable via CLI for outputs only; inputs kept for parity)
