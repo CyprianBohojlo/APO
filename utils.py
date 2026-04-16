@@ -1,7 +1,6 @@
 
 import time
 import requests
-import config
 import string
 import os
 
@@ -44,7 +43,7 @@ def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
         try:
             r = requests.post('https://api.openai.com/v1/chat/completions',
                 headers = {
-                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', getattr(config, 'OPENAI_KEY', ''))}",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', '')}",
                     "Content-Type": "application/json"
                 },
                 json = payload,
@@ -76,7 +75,7 @@ def instructGPT_logprobs(prompt, temperature=0.7):
         try:
             r = requests.post('https://api.openai.com/v1/completions',
                 headers = {
-                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', getattr(config, 'OPENAI_KEY', ''))}",
+                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', '')}",
                     "Content-Type": "application/json"
                 },
                 json = payload,
