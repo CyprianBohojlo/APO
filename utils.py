@@ -1,5 +1,6 @@
 
 import time
+import random
 import requests
 import string
 import os
@@ -23,7 +24,12 @@ def parse_sectioned_prompt(s):
     return result
 
 
-def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024, 
+def _backoff(retries):
+    base = min(2 ** retries, 60)
+    return base + random.uniform(0, base * 0.5)
+
+
+def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
                   presence_penalty=0, frequency_penalty=0, logit_bias={}, timeout=10):
     messages = [{"role": "user", "content": prompt}]
     payload = {
@@ -39,7 +45,8 @@ def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
         "logit_bias": logit_bias
     }
     retries = 0
-    max_retries = 20
+    max_retries = 30
+    r = None
     while retries < max_retries:
         try:
             r = requests.post('https://api.openai.com/v1/chat/completions',
@@ -50,16 +57,19 @@ def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
                 json = payload,
                 timeout=timeout
             )
-            if r.status_code != 200:
-                retries += 1
-                time.sleep(min(2 ** retries, 60))
-            else:
+            if r.status_code == 200:
                 break
+            retries += 1
+            time.sleep(_backoff(retries))
         except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
             retries += 1
-            time.sleep(min(2 ** retries, 60))
-    r = r.json()
-    return [choice['message']['content'] for choice in r['choices']]
+            time.sleep(_backoff(retries))
+    if r is None or r.status_code != 200:
+        raise RuntimeError(f"OpenAI API failed after {max_retries} retries (last status: {r.status_code if r else 'no response'})")
+    data = r.json()
+    if "choices" not in data:
+        raise RuntimeError(f"OpenAI API returned unexpected response: {str(data)[:200]}")
+    return [choice['message']['content'] for choice in data['choices']]
 
 
 def instructGPT_logprobs(prompt, temperature=0.7):
@@ -72,7 +82,8 @@ def instructGPT_logprobs(prompt, temperature=0.7):
         "echo": True
     }
     retries = 0
-    max_retries = 20
+    max_retries = 30
+    r = None
     while retries < max_retries:
         try:
             r = requests.post('https://api.openai.com/v1/completions',
@@ -83,16 +94,19 @@ def instructGPT_logprobs(prompt, temperature=0.7):
                 json = payload,
                 timeout=10
             )
-            if r.status_code != 200:
-                retries += 1
-                time.sleep(min(2 ** retries, 60))
-            else:
+            if r.status_code == 200:
                 break
+            retries += 1
+            time.sleep(_backoff(retries))
         except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
             retries += 1
-            time.sleep(min(2 ** retries, 60))
-    r = r.json()
-    return r['choices']
+            time.sleep(_backoff(retries))
+    if r is None or r.status_code != 200:
+        raise RuntimeError(f"OpenAI API failed after {max_retries} retries (last status: {r.status_code if r else 'no response'})")
+    data = r.json()
+    if "choices" not in data:
+        raise RuntimeError(f"OpenAI API returned unexpected response: {str(data)[:200]}")
+    return data['choices']
 
 
 def wrap_prompt(prompt: str) -> str:
