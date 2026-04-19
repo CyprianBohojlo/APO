@@ -89,6 +89,6 @@ class QA_Generator(GPT4Predictor):
         # print(f"\n[LLM DEBUG] QUESTION:\n{ex['question']}\n", flush=True)
         # print(f"[LLM DEBUG] CONTEXT:\n{ctx}\n", flush=True)
         # print(f"[LLM DEBUG] MESSAGE SENT TO LLM:\n{filled_prompt}\n", flush=True)
-        answer = utils.chatgpt(filled_prompt, temperature=0.0, n=1, timeout=15)[0]
+        answer = utils.chatgpt(filled_prompt, temperature=0.0, n=1, timeout=60)[0]
         return answer.strip()
 

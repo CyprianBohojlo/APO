@@ -30,7 +30,7 @@ def _backoff(retries):
 
 
 def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
-                  presence_penalty=0, frequency_penalty=0, logit_bias={}, timeout=10):
+                  presence_penalty=0, frequency_penalty=0, logit_bias={}, timeout=60):
     messages = [{"role": "user", "content": prompt}]
     payload = {
         "messages": messages,
