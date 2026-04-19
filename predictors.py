@@ -24,7 +24,14 @@ class GPT4Predictor(ABC):
             futures = [
                 pool.submit(self.inference, ex, prompt) for ex in examples
             ]
-            return [f.result() for f in futures]
+            results = []
+            for f in futures:
+                try:
+                    results.append(f.result())
+                except Exception as e:
+                    print(f"[WARN] batch_inference thread failed: {e}", flush=True)
+                    results.append("")
+            return results
 
 
 # Binary Predictor kept just in case

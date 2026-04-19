@@ -42,7 +42,11 @@ class DataProcessor(ABC):
 
 def process_example(ex: Dict, predictor, prompt):
     """Called in worker, returns both example and prediction."""
-    pred = predictor.inference(ex, prompt)
+    try:
+        pred = predictor.inference(ex, prompt)
+    except Exception as e:
+        print(f"[WARN] process_example failed for doc={ex.get('doc_name','?')}: {e}", flush=True)
+        pred = ""
     return ex, pred
 
 
