@@ -1,9 +1,11 @@
 
-import time
-import random
-import requests
 import string
-import os
+
+import openai
+from openai import OpenAI
+
+client = OpenAI(max_retries=5)
+
 
 def parse_sectioned_prompt(s):
 
@@ -24,89 +26,27 @@ def parse_sectioned_prompt(s):
     return result
 
 
-def _backoff(retries):
-    base = min(2 ** retries, 60)
-    return base + random.uniform(0, base * 0.5)
-
-
 def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
                   presence_penalty=0, frequency_penalty=0, logit_bias={}, timeout=60):
-    messages = [{"role": "user", "content": prompt}]
-    payload = {
-        "messages": messages,
-        "model": "gpt-4o-mini",
-        "temperature": temperature,
-        "n": n,
-        "top_p": top_p,
-        "stop": stop,
-        "max_tokens": max_tokens,
-        "presence_penalty": presence_penalty,
-        "frequency_penalty": frequency_penalty,
-        "logit_bias": logit_bias
-    }
-    retries = 0
-    max_retries = 30
-    r = None
-    while retries < max_retries:
-        try:
-            r = requests.post('https://api.openai.com/v1/chat/completions',
-                headers = {
-                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', '')}",
-                    "Content-Type": "application/json"
-                },
-                json = payload,
-                timeout=timeout
-            )
-            if r.status_code == 200:
-                break
-            retries += 1
-            time.sleep(_backoff(retries))
-        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-            retries += 1
-            time.sleep(_backoff(retries))
-    if r is None or r.status_code != 200:
-        raise RuntimeError(f"OpenAI API failed after {max_retries} retries (last status: {r.status_code if r else 'no response'})")
-    data = r.json()
-    if "choices" not in data:
-        raise RuntimeError(f"OpenAI API returned unexpected response: {str(data)[:200]}")
-    return [choice['message']['content'] for choice in data['choices']]
-
-
-def instructGPT_logprobs(prompt, temperature=0.7):
-    payload = {
-        "prompt": prompt,
-        "model": "text-davinci-003",
-        "temperature": temperature,
-        "max_tokens": 1,
-        "logprobs": 1,
-        "echo": True
-    }
-    retries = 0
-    max_retries = 30
-    r = None
-    while retries < max_retries:
-        try:
-            r = requests.post('https://api.openai.com/v1/completions',
-                headers = {
-                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY', '')}",
-                    "Content-Type": "application/json"
-                },
-                json = payload,
-                timeout=10
-            )
-            if r.status_code == 200:
-                break
-            retries += 1
-            time.sleep(_backoff(retries))
-        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-            retries += 1
-            time.sleep(_backoff(retries))
-    if r is None or r.status_code != 200:
-        raise RuntimeError(f"OpenAI API failed after {max_retries} retries (last status: {r.status_code if r else 'no response'})")
-    data = r.json()
-    if "choices" not in data:
-        raise RuntimeError(f"OpenAI API returned unexpected response: {str(data)[:200]}")
-    return data['choices']
+    """Call the OpenAI chat completions API and return a list of response strings."""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            n=n,
+            top_p=top_p,
+            stop=stop,
+            max_tokens=max_tokens,
+            presence_penalty=presence_penalty,
+            frequency_penalty=frequency_penalty,
+            logit_bias=logit_bias,
+            timeout=timeout,
+        )
+        return [choice.message.content for choice in response.choices]
+    except (openai.APIError, openai.APIConnectionError, openai.RateLimitError) as e:
+        print(f"Warning: OpenAI API call failed: {e}")
+        return [""]
 
 
 def wrap_prompt(prompt: str) -> str:
