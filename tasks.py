@@ -42,8 +42,11 @@ class DataProcessor(ABC):
 
 def process_example(ex: Dict, predictor, prompt):
     """Called in worker, returns both example and prediction."""
+    from utils import DailyRateLimitError
     try:
         pred = predictor.inference(ex, prompt)
+    except DailyRateLimitError:
+        raise
     except Exception as e:
         print(f"[WARN] process_example failed for doc={ex.get('doc_name','?')}: {e}", flush=True)
         pred = ""

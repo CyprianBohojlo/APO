@@ -8,6 +8,7 @@ from predictors import QA_Generator
 from scorers    import BEMScorer
 from evaluators import get_evaluator, PPOEvaluator, DPOEvaluator
 from paths      import ROOT
+from utils      import DailyRateLimitError
 
 
 def parse_args():
@@ -255,80 +256,74 @@ def main() -> None:
 
 
     # optimisation loop
-    for round_idx in tqdm(range(start_round, config["rounds"] + 1), desc="round"):
-        start = time.time()
+    try:
+        for round_idx in tqdm(range(start_round, config["rounds"] + 1), desc="round"):
+            start = time.time()
 
-        # expand
-        if round_idx > 0:
-            candidates = optimiser.expand_candidates(candidates, task, predictor, train_exs)
+            # expand
+            if round_idx > 0:
+                candidates = optimiser.expand_candidates(candidates, task, predictor, train_exs)
 
-        # score
-        scores = optimiser.score_candidates(candidates, task, predictor, train_exs)
-        scores, candidates = zip(*sorted(zip(scores, candidates), reverse=True))
-        scores, candidates = list(scores), list(candidates)
+            # score
+            scores = optimiser.score_candidates(candidates, task, predictor, train_exs)
+            scores, candidates = zip(*sorted(zip(scores, candidates), reverse=True))
+            scores, candidates = list(scores), list(candidates)
 
-        # after 'scores = optimiser.score_candidates(...)' and the metrics write,
-        # just before the block that writes the PPO *.json files:
-        if ppo_round_offsets is not None:
-            ppo_round_offsets.append(len(getattr(evaluator, "rewards_history", [])))
+            if ppo_round_offsets is not None:
+                ppo_round_offsets.append(len(getattr(evaluator, "rewards_history", [])))
 
+            # select candidates
+            candidates = candidates[: config["beam_size"]]
+            scores = scores[: config["beam_size"]]
 
+            #  record candidates, estimated scores, and true scores
+            with open(args.out, "a") as f:
+                f.write(f"======== ROUND {round_idx}\n")
+                f.write(f"{time.time() - start:.2f}s\n")
+                f.write(json.dumps(scores) + "\n")
 
-        # select candidates
-        candidates = candidates[: config["beam_size"]]
-        scores = scores[: config["beam_size"]]
+            metrics = []
+            for candidate in candidates:
+                accuracy = task.evaluate(predictor, candidate, test_subset, n=None)
+                metrics.append(accuracy)
+            with open(args.out, "a") as f:
+                f.write(json.dumps(metrics) + "\n")
 
-        #  record candidates, estimated scores, and true scores
-        with open(args.out, "a") as f:
-            f.write(f"======== ROUND {round_idx}\n")
-            f.write(f"{time.time() - start:.2f}s\n")
-            f.write(json.dumps(scores) + "\n")
-
-        metrics = []
-        for candidate in candidates:
-            accuracy = task.evaluate(predictor, candidate, test_subset, n=None)
-            metrics.append(accuracy)
-        with open(args.out, "a") as f:
-            f.write(json.dumps(metrics) + "\n")
-
-            if args.evaluator == "ppo" and args.ppo_log_history:
-                # flat per-step means
-                pathlib.Path(args.out + ".ppo_rewards.json").write_text(
-                    json.dumps(getattr(evaluator, "rewards_history", []))
-                )
-                # full per-example hits per step
-                pathlib.Path(args.out + ".ppo_rewards_full.json").write_text(
-                    json.dumps(getattr(evaluator, "rewards_full_history", []))
-                )
-                # round boundaries
-                pathlib.Path(args.out + ".ppo_round_offsets.json").write_text(
-                    json.dumps(ppo_round_offsets)
-                )
-                # by-round (means)
-                r = getattr(evaluator, "rewards_history", [])
-                by_round = [r[ppo_round_offsets[i]:ppo_round_offsets[i+1]]
-                            for i in range(len(ppo_round_offsets)-1)]
-                pathlib.Path(args.out + ".ppo_rewards_by_round.json").write_text(
-                    json.dumps(by_round)
-                )
-                # optional: by-round (full per-example vectors)
-                rf = getattr(evaluator, "rewards_full_history", [])
-                by_round_full = [rf[ppo_round_offsets[i]:ppo_round_offsets[i+1]]
+                if args.evaluator == "ppo" and args.ppo_log_history:
+                    pathlib.Path(args.out + ".ppo_rewards.json").write_text(
+                        json.dumps(getattr(evaluator, "rewards_history", []))
+                    )
+                    pathlib.Path(args.out + ".ppo_rewards_full.json").write_text(
+                        json.dumps(getattr(evaluator, "rewards_full_history", []))
+                    )
+                    pathlib.Path(args.out + ".ppo_round_offsets.json").write_text(
+                        json.dumps(ppo_round_offsets)
+                    )
+                    r = getattr(evaluator, "rewards_history", [])
+                    by_round = [r[ppo_round_offsets[i]:ppo_round_offsets[i+1]]
                                 for i in range(len(ppo_round_offsets)-1)]
-                pathlib.Path(args.out + ".ppo_rewards_full_by_round.json").write_text(
-                    json.dumps(by_round_full)
-                )
-            if args.evaluator == "dpo":
-                        # Write the running DPO history dict as JSON
-                pathlib.Path(args.out + ".dpo_history.json").write_text(
-                json.dumps(getattr(evaluator, "history", {}))
-                        )
+                    pathlib.Path(args.out + ".ppo_rewards_by_round.json").write_text(
+                        json.dumps(by_round)
+                    )
+                    rf = getattr(evaluator, "rewards_full_history", [])
+                    by_round_full = [rf[ppo_round_offsets[i]:ppo_round_offsets[i+1]]
+                                    for i in range(len(ppo_round_offsets)-1)]
+                    pathlib.Path(args.out + ".ppo_rewards_full_by_round.json").write_text(
+                        json.dumps(by_round_full)
+                    )
+                if args.evaluator == "dpo":
+                    pathlib.Path(args.out + ".dpo_history.json").write_text(
+                        json.dumps(getattr(evaluator, "history", {}))
+                    )
 
-        # Save checkpoint after each completed round.
-        _save_checkpoint(args, round_idx, candidates, scores, evaluator, ppo_round_offsets)
+            # Save checkpoint after each completed round.
+            _save_checkpoint(args, round_idx, candidates, scores, evaluator, ppo_round_offsets)
 
-
-
+    except DailyRateLimitError as e:
+        print(f"\nDaily rate limit reached. Saving checkpoint and exiting.")
+        print(f"Resume this experiment by re-running the same command.")
+        _save_checkpoint(args, round_idx - 1, candidates, scores, evaluator, ppo_round_offsets)
+        raise SystemExit(2)
 
     # Experiment completed successfully. Remove checkpoint.
     _delete_checkpoint(args)

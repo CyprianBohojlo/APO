@@ -28,6 +28,8 @@ class GPT4Predictor(ABC):
             for f in futures:
                 try:
                     results.append(f.result())
+                except utils.DailyRateLimitError:
+                    raise
                 except Exception as e:
                     print(f"[WARN] batch_inference thread failed: {e}", flush=True)
                     results.append("")
@@ -100,6 +102,8 @@ class QA_Generator(GPT4Predictor):
         try:
             answer = utils.chatgpt(filled_prompt, temperature=0.0, n=1, timeout=60)[0]
             return answer.strip()
+        except utils.DailyRateLimitError:
+            raise
         except (RuntimeError, Exception) as e:
             print(f"[WARN] inference failed for doc={ex.get('doc_name','?')}: {e}", flush=True)
             return ""

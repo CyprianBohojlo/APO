@@ -80,8 +80,10 @@ class ProTeGi(PromptOptimizer):
         gradient_prompt = "\n".join(line.lstrip() for line in gradient_prompt.split("\n"))
         try:
             res = utils.chatgpt(gradient_prompt, n=n)
+        except utils.DailyRateLimitError:
+            raise
         except (RuntimeError, Exception) as e:
-            print(f"[WARN] get_gradients API call failed: {e}", flush=True)
+            print(f"[WARN] API call failed: {e}", flush=True)
             return []
         feedbacks = []
         for r in res:
@@ -124,6 +126,8 @@ class ProTeGi(PromptOptimizer):
         )
         try:
             out = utils.chatgpt(rewriter_prompt, n=n)
+        except utils.DailyRateLimitError:
+            raise
         except (RuntimeError, Exception) as e:
             print(f"[WARN] generate_synonyms API call failed: {e}", flush=True)
             return []

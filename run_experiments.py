@@ -108,6 +108,8 @@ def run_experiment(exp: dict, data_dir: str, prompt_file: str, out_path: str) ->
 
     # Stream stdout/stderr directly to the terminal so progress is visible.
     result = subprocess.run(cmd, env=env)
+    if result.returncode == 2:
+        return "rate_limited"
     return result.returncode == 0
 
 
@@ -160,10 +162,14 @@ def main() -> None:
         print(f"{'=' * 60}")
 
         start = time.time()
-        success = run_experiment(exp, data_dir, prompt_file, out_path)
+        result = run_experiment(exp, data_dir, prompt_file, out_path)
         elapsed = time.time() - start
 
-        if success:
+        if result == "rate_limited":
+            print(f"\nRATE LIMITED during {exp['id']} after {elapsed / 60:.1f} min.")
+            print("Daily request limit reached. Re-run this script after the limit resets.")
+            break
+        elif result:
             completed += 1
             print(f"\nCOMPLETED {exp['id']} in {elapsed / 60:.1f} min. Output: {out_path}")
         else:

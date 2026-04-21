@@ -7,6 +7,11 @@ from openai import OpenAI
 client = OpenAI(max_retries=5)
 
 
+class DailyRateLimitError(Exception):
+    """Raised when the daily request limit is exhausted."""
+    pass
+
+
 def parse_sectioned_prompt(s):
 
     result = {}
@@ -44,7 +49,13 @@ def chatgpt(prompt, temperature=0.3, n=1, top_p=1, stop=None, max_tokens=1024,
             timeout=timeout,
         )
         return [choice.message.content for choice in response.choices]
-    except (openai.APIError, openai.APIConnectionError, openai.RateLimitError) as e:
+    except openai.RateLimitError as e:
+        msg = str(e)
+        if "RPD" in msg or "requests per day" in msg:
+            raise DailyRateLimitError(msg) from e
+        print(f"Warning: OpenAI rate limit (non-daily): {e}")
+        return [""]
+    except (openai.APIError, openai.APIConnectionError) as e:
         print(f"Warning: OpenAI API call failed: {e}")
         return [""]
 
